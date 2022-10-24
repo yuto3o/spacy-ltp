@@ -25,15 +25,44 @@ def load_pipeline(
     the same language code, leave the tokenizer config empty. Otherwise, pass
     in the ltp pipeline settings in config['nlp']['tokenizer'].
     name (str): The language code, e.g. 'en' or 'zh'.
-    lang: str = '',
-    dir: Optional[str] = None,
-    package: str = 'default',
-    processors: Union[dict, str] = {},
-    logging_level: Optional[Union[int, str]] = None,
-    verbose: Optional[bool] = None,
-    use_gpu: bool = True,
-    **kwargs: Options for the individual ltp processors.
-    RETURNS (Language): The nlp object.
+
+    Parameters
+    ----------
+    pretrained_model_name_or_path: `str` or `os.PathLike`
+        Can be either:
+            - A string, the `model id` of a pretrained model hosted inside a model repo on huggingface.co. Valid model
+             ids are [`LTP/tiny`, `LTP/small`, `LTP/base`, `LTP/base1`, `LTP/base1`, `LTP/legacy`], the legacy model
+             only support cws, pos and ner, but more fast.
+            - You can add `revision` by appending `@` at the end of model_id simply like this:
+              `dbmdz/bert-base-german-cased@main` Revision is the specific model version to use. It can be a branch
+              name, a tag name, or a commit id, since we use a git-based system for storing models and other artifacts
+               on huggingface.co, so `revision` can be any identifier allowed by git.
+            - A path to a `directory` containing model weights saved using
+              [`~transformers.PreTrainedModel.save_pretrained`], e.g., `./my_model_directory/`.
+            - `None` if you are both providing the configuration and state dictionary (resp. with keyword arguments
+              `config` and `state_dict`).
+    force_download: bool
+        Whether to force the (re-)download of the model weights and configuration files, overriding the cached versions
+        if they exist.
+    resume_download: bool
+        Whether to delete incompletely received files. Will attempt to resume the download if such a file exists.
+    proxies: Dict[str, str]
+        A dictionary of proxy servers to use by protocol or endpoint, e.g., `{'http': 'foo.bar:3128',
+        'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
+    use_auth_token:  str or bool
+        The token to use as HTTP bearer authorization for remote files. If `True`, will use the token generated when
+        running `transformers-cli login` (stored in `~/.huggingface`).
+    cache_dir (`Union[str, os.PathLike]`, *optional*):
+        Path to a directory in which a downloaded pretrained model configuration should be cached if the standard
+        cache should not be used.
+    local_files_only(`bool`, *optional*, defaults to `False`):
+        Whether to only look at local files (i.e., do not try to download the model).
+    kwargs (`Dict`, *optional*):
+        model_kwargs will be passed to the model during initialization
+
+    Returns
+    -------
+    'Language'
     """
     # Create an empty config skeleton
     config = {'nlp': {'tokenizer': {'kwargs': {}}}}
@@ -101,9 +130,17 @@ class LtpTokenizer(object):
 
     def __init__(self, ltp, vocab):
         """Initialize the tokenizer.
-        ltp (ltp.LTP): The initialized ltp pipeline.
-        vocab (spacy.vocab.Vocab): The vocabulary to use.
-        RETURNS (Tokenizer): The custom tokenizer.
+
+        Parameters
+        ----------
+        ltp: LTP
+            The initialized ltp pipeline.
+        vocab: spacy.vocab.Vocab
+            The vocabulary to use.
+
+        Returns
+        -------
+        The custom tokenizer.
         """
         self.ltp = ltp
         self.vocab = vocab
@@ -111,8 +148,15 @@ class LtpTokenizer(object):
 
     def __call__(self, text):
         """Convert a ltp instance to a spaCy Doc.
-        text (unicode): The text to process.
-        RETURNS (spacy.tokens.Doc): The spaCy Doc object.
+
+        Parameters
+        ----------
+        text: str
+            The text to process.
+
+        Returns
+        -------
+        spacy.tokens.Doc, The spaCy Doc object.
         """
         if not text:
             return Doc(self.vocab)
@@ -214,9 +258,17 @@ class LtpTokenizer(object):
         return doc
 
     def get_tokens_with_heads(self, ltp_doc):
-        """Flatten the tokens in the ltp Doc and extract the token indices of the sentence start tokens to
-        set is_sent_start. ltp_doc (ltp.Document): The processed ltp doc.
-        RETURNS (list): The tokens (words).
+        """Flatten the tokens in the ltp Doc and extract the token indices of the sentence start tokens to set
+        is_sent_start.
+
+        Parameters
+        ----------
+        ltp_doc: ltp.Document:
+            The processed ltp doc.
+
+        Returns
+        -------
+        The tokens (words) and heads (deps)
         """
         tokens = []
         heads = []
@@ -272,22 +324,30 @@ class LtpTokenizer(object):
 
     def token_vector(self, token):
         """Get ltp's pretrained word embedding for given token.
-        token (Token): The token whose embedding will be returned
-        RETURNS (np.ndarray[ndim=1, dtype='float32']): the embedding/vector.
+
+        Parameters
+        ----------
+        token: Token
+            The token whose embedding will be returned
+
+        Returns
+        -------
+        np.ndarray, the embedding/vector.
             token.vector.size > 0 if ltp pipeline contains a processor with
             embeddings, else token.vector.size == 0. A 0-vector (origin) will be returned
-            when the token doesn't exist in ltp's pretrained embeddings."""
+            when the token doesn't exist in ltp's pretrained embeddings.
+        """
         unit_id = self.ltp.tokenizer.convert_tokens_to_ids(token)
         return self.vecs[unit_id]
 
     def token_has_vector(self, token):
-        """Check if the token exists as a unit in ltp's pretrained embeddings."""
+        """Check if the token exists as a unit in ltp's pretrained embeddings.
+        """
         return self.ltp.tokenizer.convert_tokens_to_ids(token) != self.ltp.tokenizer.unk_token_id
 
     @staticmethod
     def _find_embeddings(ltp):
         """Find pretrained word embeddings in any of a LTP's processors.
-        RETURNS (Pretrain): Or None if no embeddings were found.
         """
         embs = None
 
@@ -311,13 +371,15 @@ class LtpTokenizer(object):
 
 
 def find_all(s, sub):
-    r""" find all start index of subtext in the text
+    """Find all start index of subtext in the text
 
-    Args:
+    Parameters
+    ----------
         s: str
         sub: str
 
-    Returns:
+    Returns
+    -------
         List[int]
     """
     if len(sub) == 0:
@@ -330,3 +392,8 @@ def find_all(s, sub):
         p = s.find(sub, p + len(sub))
 
     return q
+
+
+__all__ = [
+        'load_pipeline',
+]

@@ -52,12 +52,12 @@ def load_pipeline(
     use_auth_token:  str or bool
         The token to use as HTTP bearer authorization for remote files. If `True`, will use the token generated when
         running `transformers-cli login` (stored in `~/.huggingface`).
-    cache_dir (`Union[str, os.PathLike]`, *optional*):
+    cache_dir: str, os.PathLike
         Path to a directory in which a downloaded pretrained model configuration should be cached if the standard
         cache should not be used.
-    local_files_only(`bool`, *optional*, defaults to `False`):
+    local_files_only: bool
         Whether to only look at local files (i.e., do not try to download the model).
-    kwargs (`Dict`, *optional*):
+    kwargs: Dict
         model_kwargs will be passed to the model during initialization
 
     Returns

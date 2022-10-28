@@ -62,7 +62,7 @@ def load_pipeline(
 
     Returns
     -------
-    'Language'
+    Language
     """
     # Create an empty config skeleton
     config = {'nlp': {'tokenizer': {'kwargs': {}}}}
@@ -85,7 +85,7 @@ def load_pipeline(
 
 @registry.tokenizers('spacy_ltp.PipelineAsTokenizer.v1')
 def create_tokenizer(
-        pretrained_model_name_or_path="LTP/small",
+        pretrained_model_name_or_path='LTP/small',
         force_download: bool = False,
         resume_download: bool = False,
         proxies: Dict = None,
@@ -235,10 +235,10 @@ class LtpTokenizer(object):
         ents = set()
         offset = 0
         for sent_id, sent in enumerate(sents):
-            for ent_type, ent_text in ltp_doc['ner'][sent_id]:
-                for ent_start, ent_end in find_all(sent, ent_text):
-                    ents.add((ent_start + offset, ent_end + offset, ent_type))
+            for ent_start, ent_end, ent_type in loc_in_seq(sent, ltp_doc['ner'][sent_id]):
+                ents.add((ent_start + offset, ent_end + offset, ent_type))
             offset += len(sent)
+
         ents = [doc.char_span(ent_start, ent_end, ent_type) for ent_start, ent_end, ent_type in ents]
         if not is_aligned or not all(ents):
             warnings.warn(
@@ -370,28 +370,18 @@ class LtpTokenizer(object):
         return self
 
 
-def find_all(s, sub):
-    """Find all start index of subtext in the text
+def loc_in_seq(text, ents):
+    output = []
+    offset = 0
+    for ent_type, ent_text in ents:
+        p = text.find(ent_text, offset)
+        if p == -1:
+            raise ValueError(f"{ent_text} may not in {text}")
 
-    Parameters
-    ----------
-        s: str
-        sub: str
+        output.append((p, p + len(ent_text), ent_type))
+        offset = p + len(ent_text)
 
-    Returns
-    -------
-        List[int]
-    """
-    if len(sub) == 0:
-        return []
-
-    p = s.find(sub)
-    q = []
-    while p != -1:
-        q.append((p, p + len(sub)))
-        p = s.find(sub, p + len(sub))
-
-    return q
+    return output
 
 
 __all__ = [

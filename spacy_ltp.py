@@ -235,7 +235,7 @@ class LtpTokenizer(object):
         ents = set()
         offset = 0
         for sent_id, sent in enumerate(sents):
-            for ent_start, ent_end, ent_type in loc_in_seq(sent, ltp_doc['ner'][sent_id]):
+            for ent_start, ent_end, ent_type in loc_in_seq(ltp_doc['cws'][sent_id], ltp_doc['ner'][sent_id]):
                 ents.add((ent_start + offset, ent_end + offset, ent_type))
             offset += len(sent)
 
@@ -246,7 +246,7 @@ class LtpTokenizer(object):
                     f"expansion or because the character offsets don't map to "
                     f"valid tokens produced by the ltp tokenizer:\n"
                     f"Words: {words}\n"
-                    f"Entities: {[(ent_type, ent_text) for ent_type, ent_text in ltp_doc['ner']]}",
+                    f"Entities: {[(ent_type, ent_text) for ent_type, ent_text in sum(ltp_doc['ner'], start=[])]}",
                     stacklevel=4,
             )
         else:
@@ -370,16 +370,29 @@ class LtpTokenizer(object):
         return self
 
 
-def loc_in_seq(text, ents):
+def loc_in_seq(segs, ents):
     output = []
     offset = 0
-    for ent_type, ent_text in ents:
-        p = text.find(ent_text, offset)
-        if p == -1:
-            raise ValueError(f"{ent_text} may not in {text}")
 
-        output.append((p, p + len(ent_text), ent_type))
-        offset = p + len(ent_text)
+    cur_ent_id = 0
+    state = []
+    for seg in segs:
+
+        offset += len(seg)
+        if cur_ent_id == len(ents):
+            break
+
+        ent_type, ent_text = ents[cur_ent_id]
+        state_ = ''.join(state + [seg])
+
+        if state_ == ent_text:
+            cur_ent_id += 1
+            state = []
+            output.append((offset - len(ent_text), offset, ent_type))
+            continue
+
+        if ent_text.startswith(''.join(state_)):
+            state.append(seg)
 
     return output
 

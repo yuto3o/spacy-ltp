@@ -163,13 +163,13 @@ class LtpTokenizer(object):
         elif text.isspace():
             return Doc(self.vocab, words=[text], spaces=[False])
 
+        # remove leading and trailing whitespace
+        text = text.strip()
+
         sents = StnSplit().split(text)
         ltp_doc = self.ltp.pipeline(sents, DEFAULT_TASKS)
         ltp_tokens, ltp_heads = self.get_tokens_with_heads(ltp_doc)
 
-        tags = []
-        deps = []
-        heads = []
         token_texts = [token['text'] for token in ltp_tokens]
         is_aligned = True
 
@@ -185,6 +185,10 @@ class LtpTokenizer(object):
                     'expanded tokens.',
                     stacklevel=4,
             )
+
+        tags = []
+        deps = []
+        heads = []
 
         offset = 0
         for i, word in enumerate(words):
@@ -320,7 +324,7 @@ class LtpTokenizer(object):
         if text_pos < len(text):
             text_words.append(text[text_pos:])
             text_spaces.append(False)
-        return (text_words, text_spaces)
+        return text_words, text_spaces
 
     def token_vector(self, token):
         """Get ltp's pretrained word embedding for given token.
@@ -397,6 +401,4 @@ def loc_in_seq(segs, ents):
     return output
 
 
-__all__ = [
-        'load_pipeline',
-]
+__all__ = ['load_pipeline']
